@@ -4,6 +4,7 @@ import (
 	"crypto/elliptic"
 	"github.com/mndrix/btcutil"
 	"math/big"
+  "bytes"
 )
 
 // Create the standard bitcoin elliptic curve
@@ -21,27 +22,24 @@ func (key *Key) ToPublicKey() Key {
 }
 
 func SerializePublicKey(x *big.Int, y *big.Int) Key {
-	// Create empty key
-	key := make(Key, 0, PublicKeyCompressedLength)
+  var key bytes.Buffer
 
-	// Add header; 2 if Y is even; 3 if it's odd
-	header := byte(0x2)
-	if y.Bit(0) == 1 {
-		header++
-	}
-	key = append(key, header)
+  // Write header; 0x2 for even y value; 0x3 for odd
+  header := byte(0x2)
+  if y.Bit(0) == 1 {
+    header = byte(0x3)
+  }
+  key.WriteByte(header)
 
-	// Get bytes of X-value
-	xBytes := x.Bytes()
+  // Get bytes of X-value
+  xBytes := x.Bytes()
 
-	// Pad the key so x is aligned with the LSB. Pad size is key length - header size (1) - xBytes size
-	padLength := PublicKeyCompressedLength - 1 - len(xBytes)
-	for i := 0; i < padLength; i++ {
-		key = append(key, 0)
-	}
+  // Pad the key so x is aligned with the LSB. Pad size is key length - header size (1) - xBytes size
+  for i := 0; i < (PublicKeyCompressedLength - 1 - len(xBytes)); i++ {
+    key.WriteByte(0x0)
+  }
 
-	// Finally append the x value
-	key = append(key, xBytes...)
+  key.Write(xBytes)
 
-	return key
+  return Key(key.Bytes())
 }
