@@ -26,7 +26,7 @@ func SerializePublicKey(x *big.Int, y *big.Int) Key {
 
 	// Add header; 2 if Y is even; 3 if it's odd
 	header := byte(0x2)
-	if y.Bit(0) == 0 {
+	if y.Bit(0) == 1 {
 		header++
 	}
 	key = append(key, header)
