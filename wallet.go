@@ -3,115 +3,123 @@ package bip32
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha512"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"math/big"
 )
 
-var PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
-var PublicWalletVersion, _ = hex.DecodeString("0488B21E")
-var MaxPrivateKey, _ = hex.DecodeString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141")
-
-const (
-	SerializedWalletLength = 78
+// These are basically constants that require computation
+var (
+	PrivateWalletVersion []byte
+	PublicWalletVersion  []byte
+	MaxPrivateKey        []byte
 )
 
-type HDWallet struct {
+// Setup constants that require computation
+func init() {
+	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
+	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
+
+	maxPrivateKey := &big.Int{}
+	maxPrivateKey, _ = maxPrivateKey.SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16)
+	MaxPrivateKey = maxPrivateKey.Bytes()
+}
+
+type ExtendedKey struct {
 	Version     []byte // 4 bytes
 	Depth       byte   // 1 bytes
 	ChildNumber []byte // 4 bytes
 	FingerPrint []byte // 4 bytes
 	ChainCode   []byte // 32 bytes
-	Key         Key    // 33 bytes
+	Key         []byte // 33 bytes
+	IsPrivate   bool   // unserialized
 }
 
-func NewHDWallet(seed *Seed) *HDWallet {
-	// Generate candiate keys until we find a valid one
-	validKeyCandidate := false
-	var keyCandidate []byte
-	var chainCodeCandidate []byte
+// Creates a new master extended key from a seed
+func NewExtendedKey(seed []byte) (*ExtendedKey, error) {
+	// Generate key and chaincode
+	hmac := hmac.New(sha512.New, []byte("Bitcoin seed"))
+	hmac.Write([]byte(seed))
+	intermediary := hmac.Sum(nil)
 
-	for !validKeyCandidate {
-		// Generate intermediary
-		hmac := hmac.New(sha512.New, []byte("Bitcoin seed"))
-		hmac.Write([]byte(*seed))
-		intermediary := hmac.Sum(nil)
+	// Split it into our key and chain code
+	key := intermediary[:32]
+	chainCode := intermediary[32:]
 
-		// Split it into our key and chain code candidates
-		keyCandidate = intermediary[:32]
-		chainCodeCandidate = intermediary[32:]
-
-		// Validate keyCandidate
-		keyCandidateInt, err := binary.ReadVarint(bytes.NewBuffer(keyCandidate))
-		if err == nil && keyCandidateInt != 0 && bytes.Compare(keyCandidate, MaxPrivateKey) == -1 {
-			validKeyCandidate = true
-		}
+	// Validate key
+	keyInt, _ := binary.ReadVarint(bytes.NewBuffer(key))
+	if keyInt == 0 || bytes.Compare(key, MaxPrivateKey) >= 0 {
+		return nil, errors.New("Invalid seed")
 	}
 
-	wallet := &HDWallet{
-		Version:   PrivateWalletVersion,
-		ChainCode: chainCodeCandidate,
-		Key:       Key(keyCandidate),
-	}
-
-	wallet.Depth = 0x0
-	wallet.ChildNumber = []byte{0x00, 0x00, 0x00, 0x00}
-	wallet.FingerPrint = []byte{0x00, 0x00, 0x00, 0x00}
-
-	return wallet
-}
-
-func (wallet *HDWallet) PublicWallet() *HDWallet {
-	key := wallet.Key
-
-	if wallet.IsPrivate() {
-		key = key.ToPublicKey()
-	}
-
-	return &HDWallet{
-		Version:     PublicWalletVersion,
-		Depth:       wallet.Depth,
-		ChildNumber: wallet.ChildNumber,
-		FingerPrint: wallet.FingerPrint,
-		ChainCode:   wallet.ChainCode,
+	// Create the key struct
+	extendedKey := &ExtendedKey{
+		Version:     PrivateWalletVersion,
+		ChainCode:   chainCode,
 		Key:         key,
+		Depth:       0x0,
+		ChildNumber: []byte{0x00, 0x00, 0x00, 0x00},
+		FingerPrint: []byte{0x00, 0x00, 0x00, 0x00},
+		IsPrivate:   true,
+	}
+
+	return extendedKey, nil
+}
+
+// Create public version of key or return a copy
+func (extendedKey *ExtendedKey) Neuter() *ExtendedKey {
+	key := extendedKey.Key
+
+	if extendedKey.IsPrivate {
+		key = publicKeyForPrivateKey(key)
+	}
+
+	return &ExtendedKey{
+		Version:     PublicWalletVersion,
+		Key:         key,
+		Depth:       extendedKey.Depth,
+		ChildNumber: extendedKey.ChildNumber,
+		FingerPrint: extendedKey.FingerPrint,
+		ChainCode:   extendedKey.ChainCode,
+		IsPrivate:   false,
 	}
 }
 
-func (wallet *HDWallet) Serialize() []byte {
-	var buffer bytes.Buffer
-
-	key := wallet.Key
-	if wallet.IsPrivate() {
+// Serialized an ExtendedKey to a 78 byte byte slice
+func (extendedKey *ExtendedKey) Serialize() []byte {
+	// Private keys should be prepended with a single null byte
+	key := extendedKey.Key
+	if extendedKey.IsPrivate {
 		key = append([]byte{0x0}, key...)
 	}
 
-	buffer.Write(wallet.Version)
-	buffer.WriteByte(wallet.Depth)
-	buffer.Write(wallet.FingerPrint)
-	buffer.Write(wallet.ChildNumber)
-	buffer.Write(wallet.ChainCode)
+	// Write fields to buffer in order
+	buffer := new(bytes.Buffer)
+	buffer.Write(extendedKey.Version)
+	buffer.WriteByte(extendedKey.Depth)
+	buffer.Write(extendedKey.FingerPrint)
+	buffer.Write(extendedKey.ChildNumber)
+	buffer.Write(extendedKey.ChainCode)
 	buffer.Write(key)
 
-	return AddChecksum(buffer.Bytes())
+	// Append the standard doublesha256 checksum
+	serializedKey := AddChecksum(buffer.Bytes())
+
+	return serializedKey
 }
 
-func (wallet *HDWallet) String() string {
-	return string(Base58Encode(wallet.Serialize()))
+// Encode the ExtendedKey in the standard Bitcoin base58 encoding
+func (extendedKey *ExtendedKey) String() string {
+	return string(Base58Encode(extendedKey.Serialize()))
 }
 
-func (wallet *HDWallet) IsPublic() bool {
-	if bytes.Compare(wallet.Version, PublicWalletVersion) == 0 {
-		return true
-	}
-
-	return false
-}
-
-func (wallet *HDWallet) IsPrivate() bool {
-	if bytes.Compare(wallet.Version, PrivateWalletVersion) == 0 {
-		return true
-	}
-
-	return false
+// Cryptographically secure seed
+func NewSeed() ([]byte, error) {
+	// Well that easy, just make go read 256 random bytes into a slice
+	s := make([]byte, 256)
+	_, err := rand.Read([]byte(s))
+	return s, err
 }
