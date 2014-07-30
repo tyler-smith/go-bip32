@@ -5,29 +5,23 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha512"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"math/big"
+)
+
+const (
+	FirstHardenedChild        = 0x80000000
+	PublicKeyCompressedLength = 33
 )
 
 // These are basically constants that require computation
 var (
-	PrivateWalletVersion []byte
-	PublicWalletVersion  []byte
-	MaxPrivateKey        []byte
-)
-
-// Setup constants that require computation
-func init() {
 	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
 	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
+)
 
-	maxPrivateKey := &big.Int{}
-	maxPrivateKey, _ = maxPrivateKey.SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16)
-	MaxPrivateKey = maxPrivateKey.Bytes()
-}
 
+// Represents a bip32 extended key containing key data, chain code, parent information, and other meta data
 type ExtendedKey struct {
 	Version     []byte // 4 bytes
 	Depth       byte   // 1 bytes
@@ -50,9 +44,9 @@ func NewExtendedKey(seed []byte) (*ExtendedKey, error) {
 	chainCode := intermediary[32:]
 
 	// Validate key
-	keyInt, _ := binary.ReadVarint(bytes.NewBuffer(key))
-	if keyInt == 0 || bytes.Compare(key, MaxPrivateKey) >= 0 {
-		return nil, errors.New("Invalid seed")
+	err := validatePrivateKey(key)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create the key struct
@@ -67,6 +61,68 @@ func NewExtendedKey(seed []byte) (*ExtendedKey, error) {
 	}
 
 	return extendedKey, nil
+}
+
+// Derives a child key from a given parent as outlined by bip32
+func (extendedKey *ExtendedKey) Child(childIdx uint32) (*ExtendedKey, error) {
+	hardenedChild := childIdx >= FirstHardenedChild
+	childIndexBytes := uint32Bytes(childIdx)
+
+	// Fail early if trying to create hardned child from public key
+	if !extendedKey.IsPrivate && hardenedChild {
+		return nil, errors.New("Can't create hardened child for public key")
+	}
+
+	// Get intermediary to create key and chaincode from
+	// Hardened children are based on the private key
+	// NonHardened children are based on the public key
+	var data []byte
+	if hardenedChild {
+		data = append([]byte{0x0}, extendedKey.Key...)
+	} else {
+		data = publicKeyForPrivateKey(extendedKey.Key)
+	}
+	data = append(data, childIndexBytes...)
+
+	hmac := hmac.New(sha512.New, extendedKey.ChainCode)
+	hmac.Write(data)
+	intermediary := hmac.Sum(nil)
+
+	// Create child ExtendedKey with data common to all both scenarios
+	childExtendedKey := &ExtendedKey{
+		ChildNumber: childIndexBytes,
+		ChainCode:   intermediary[32:],
+		Depth:       extendedKey.Depth + 1,
+		IsPrivate:   extendedKey.IsPrivate,
+	}
+
+	// Bip32 CKDpriv
+	if extendedKey.IsPrivate {
+		childExtendedKey.Version = PrivateWalletVersion
+		childExtendedKey.FingerPrint = Hash160(publicKeyForPrivateKey(extendedKey.Key))[:4]
+		childExtendedKey.Key = addPrivateKeys(intermediary[:32], extendedKey.Key)
+
+		// Validate key
+		err := validatePrivateKey(childExtendedKey.Key)
+		if err != nil {
+			return nil, err
+		}
+		// Bip32 CKDpub
+	} else {
+		key := publicKeyForPrivateKey(intermediary[:32])
+
+		// Validate key
+		err := validateChildPublicKey(key)
+		if err != nil {
+			return nil, err
+		}
+
+		childExtendedKey.Version = PublicWalletVersion
+		childExtendedKey.FingerPrint = Hash160(extendedKey.Key)[:4]
+		childExtendedKey.Key = addPublicKeys(key, extendedKey.Key)
+	}
+
+	return childExtendedKey, nil
 }
 
 // Create public version of key or return a copy
