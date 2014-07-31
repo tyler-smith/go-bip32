@@ -14,7 +14,6 @@ const (
 	PublicKeyCompressedLength = 33
 )
 
-// These are basically constants that require computation
 var (
 	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
 	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
