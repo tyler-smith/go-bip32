@@ -101,7 +101,7 @@ func testVectorKeyPairs(t *testing.T, vector testMasterKey) {
 	privKey, err := bip32.NewMasterKey(seed)
 	assert.NoError(t, err)
 
-	pubKey := privKey.Neuter()
+	pubKey := privKey.PublicKey()
 
 	assert.Equal(t, vector.privKey, privKey.String())
 	assert.Equal(t, vector.pubKey, pubKey.String())
@@ -109,11 +109,11 @@ func testVectorKeyPairs(t *testing.T, vector testMasterKey) {
 	// Iterate over the entire child chain and test the given keys
 	for _, testChildKey := range vector.children {
 		// Get the private key at the given key tree path
-		privKey, err = privKey.Child(testChildKey.pathFragment)
+		privKey, err = privKey.ChildKey(testChildKey.pathFragment)
 		assert.NoError(t, err)
 
 		// Get this private key's public key
-		pubKey = privKey.Neuter()
+		pubKey = privKey.PublicKey()
 
 		// Assert correctness
 		assert.Equal(t, testChildKey.privKey, privKey.String())

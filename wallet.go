@@ -64,7 +64,7 @@ func NewMasterKey(seed []byte) (*Key, error) {
 }
 
 // Derives a child key from a given parent as outlined by bip32
-func (key *Key) Child(childIdx uint32) (*Key, error) {
+func (key *Key) ChildKey(childIdx uint32) (*Key, error) {
 	hardenedChild := childIdx >= FirstHardenedChild
 	childIndexBytes := uint32Bytes(childIdx)
 
@@ -125,8 +125,8 @@ func (key *Key) Child(childIdx uint32) (*Key, error) {
 	return childKey, nil
 }
 
-// Create public version of key or return a copy
-func (key *Key) Neuter() *Key {
+// Create public version of key or return a copy; 'Neuter' function from the bip32 spec
+func (key *Key) PublicKey() *Key {
 	keyBytes := key.Key
 
 	if key.IsPrivate {
