@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	FirstHardenedChild        = 0x80000000
+	FirstHardenedChild        = uint32(0x80000000)
 	PublicKeyCompressedLength = 33
 )
 
