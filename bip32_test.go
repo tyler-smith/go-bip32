@@ -109,7 +109,7 @@ func testVectorKeyPairs(t *testing.T, vector testMasterKey) {
 	// Iterate over the entire child chain and test the given keys
 	for _, testChildKey := range vector.children {
 		// Get the private key at the given key tree path
-		privKey, err = privKey.ChildKey(testChildKey.pathFragment)
+		privKey, err = privKey.NewChildKey(testChildKey.pathFragment)
 		assert.NoError(t, err)
 
 		// Get this private key's public key

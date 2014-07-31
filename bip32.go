@@ -62,7 +62,7 @@ func NewMasterKey(seed []byte) (*Key, error) {
 }
 
 // Derives a child key from a given parent as outlined by bip32
-func (key *Key) ChildKey(childIdx uint32) (*Key, error) {
+func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	hardenedChild := childIdx >= FirstHardenedChild
 	childIndexBytes := uint32Bytes(childIdx)
 
