@@ -16,9 +16,8 @@ const (
 
 var (
 	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
-	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
+	PublicWalletVersion, _  = hex.DecodeString("0488B21E")
 )
-
 
 // Represents a bip32 extended key containing key data, chain code, parent information, and other meta data
 type Key struct {

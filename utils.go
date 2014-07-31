@@ -5,16 +5,16 @@ import (
 	"code.google.com/p/go.crypto/ripemd160"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"github.com/cmars/basen"
 	"github.com/mndrix/btcutil"
 	"io"
 	"math/big"
-	"errors"
 )
 
 var (
-	curve = btcutil.Secp256k1()
-	curveParams = curve.Params()
+	curve                 = btcutil.Secp256k1()
+	curveParams           = curve.Params()
 	BitcoinBase58Encoding = basen.NewEncoding("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 )
 
@@ -117,7 +117,7 @@ func expandPublicKey(key []byte) (*big.Int, *big.Int) {
 	// sqrt(n) = n^((q+1)/4) if q = 3 mod 4
 	Y.Exp(ySquared, qPlus1Div4, curveParams.P)
 
-	if uint32(key[0]) % 2 == 0 {
+	if uint32(key[0])%2 == 0 {
 		Y.Sub(curveParams.P, Y)
 	}
 
