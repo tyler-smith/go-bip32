@@ -99,7 +99,7 @@ func (extendedKey *ExtendedKey) Child(childIdx uint32) (*ExtendedKey, error) {
 	// Bip32 CKDpriv
 	if extendedKey.IsPrivate {
 		childExtendedKey.Version = PrivateWalletVersion
-		childExtendedKey.FingerPrint = Hash160(publicKeyForPrivateKey(extendedKey.Key))[:4]
+		childExtendedKey.FingerPrint = hash160(publicKeyForPrivateKey(extendedKey.Key))[:4]
 		childExtendedKey.Key = addPrivateKeys(intermediary[:32], extendedKey.Key)
 
 		// Validate key
@@ -118,7 +118,7 @@ func (extendedKey *ExtendedKey) Child(childIdx uint32) (*ExtendedKey, error) {
 		}
 
 		childExtendedKey.Version = PublicWalletVersion
-		childExtendedKey.FingerPrint = Hash160(extendedKey.Key)[:4]
+		childExtendedKey.FingerPrint = hash160(extendedKey.Key)[:4]
 		childExtendedKey.Key = addPublicKeys(key, extendedKey.Key)
 	}
 
@@ -162,14 +162,14 @@ func (extendedKey *ExtendedKey) Serialize() []byte {
 	buffer.Write(key)
 
 	// Append the standard doublesha256 checksum
-	serializedKey := AddChecksum(buffer.Bytes())
+	serializedKey := addChecksumToBytes(buffer.Bytes())
 
 	return serializedKey
 }
 
 // Encode the ExtendedKey in the standard Bitcoin base58 encoding
 func (extendedKey *ExtendedKey) String() string {
-	return string(Base58Encode(extendedKey.Serialize()))
+	return string(base58Encode(extendedKey.Serialize()))
 }
 
 // Cryptographically secure seed

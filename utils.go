@@ -18,39 +18,48 @@ var (
 	BitcoinBase58Encoding = basen.NewEncoding("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 )
 
-func Sha256(data []byte) []byte {
+//
+// Hashes
+//
+
+func hashSha256(data []byte) []byte {
 	hasher := sha256.New()
 	hasher.Write(data)
 	return hasher.Sum(nil)
 }
 
-func DoubleSha256(data []byte) []byte {
-	return Sha256(Sha256(data))
+func hashDoubleSha256(data []byte) []byte {
+	return hashSha256(hashSha256(data))
 }
 
-func RipeMD160(data []byte) []byte {
+func hashRipeMD160(data []byte) []byte {
 	hasher := ripemd160.New()
 	io.WriteString(hasher, string(data))
 	return hasher.Sum(nil)
 }
 
-func Hash160(data []byte) []byte {
-	return RipeMD160(Sha256(data))
+func hash160(data []byte) []byte {
+	return hashRipeMD160(hashSha256(data))
 }
 
-func Checksum(data []byte) []byte {
-	return DoubleSha256(data)[:4]
+//
+// Encoding
+//
+
+func checksum(data []byte) []byte {
+	return hashDoubleSha256(data)[:4]
 }
 
-func AddChecksum(data []byte) []byte {
-	checksum := Checksum(data)
+func addChecksumToBytes(data []byte) []byte {
+	checksum := checksum(data)
 	return append(data, checksum...)
 }
 
-func Base58Encode(data []byte) []byte {
+func base58Encode(data []byte) []byte {
 	return []byte(BitcoinBase58Encoding.EncodeToString(data))
 }
 
+// Keys
 func publicKeyForPrivateKey(key []byte) []byte {
 	return compressPublicKey(curve.ScalarBaseMult([]byte(key)))
 }
@@ -115,12 +124,6 @@ func expandPublicKey(key []byte) (*big.Int, *big.Int) {
 	return X, Y
 }
 
-func uint32Bytes(i uint32) []byte {
-	bytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(bytes, i)
-	return bytes
-}
-
 func validatePrivateKey(key []byte) error {
 	keyInt, _ := binary.ReadVarint(bytes.NewBuffer(key))
 	if keyInt == 0 || bytes.Compare(key, curveParams.N.Bytes()) >= 0 {
@@ -138,4 +141,13 @@ func validateChildPublicKey(key []byte) error {
 	}
 
 	return nil
+}
+
+//
+// Numerical
+//
+func uint32Bytes(i uint32) []byte {
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, i)
+	return bytes
 }
