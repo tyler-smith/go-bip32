@@ -22,7 +22,7 @@ var (
 
 
 // Represents a bip32 extended key containing key data, chain code, parent information, and other meta data
-type ExtendedKey struct {
+type Key struct {
 	Version     []byte // 4 bytes
 	Depth       byte   // 1 bytes
 	ChildNumber []byte // 4 bytes
@@ -33,43 +33,43 @@ type ExtendedKey struct {
 }
 
 // Creates a new master extended key from a seed
-func NewExtendedKey(seed []byte) (*ExtendedKey, error) {
+func NewMasterKey(seed []byte) (*Key, error) {
 	// Generate key and chaincode
 	hmac := hmac.New(sha512.New, []byte("Bitcoin seed"))
 	hmac.Write([]byte(seed))
 	intermediary := hmac.Sum(nil)
 
 	// Split it into our key and chain code
-	key := intermediary[:32]
+	keyBytes := intermediary[:32]
 	chainCode := intermediary[32:]
 
 	// Validate key
-	err := validatePrivateKey(key)
+	err := validatePrivateKey(keyBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the key struct
-	extendedKey := &ExtendedKey{
+	key := &Key{
 		Version:     PrivateWalletVersion,
 		ChainCode:   chainCode,
-		Key:         key,
+		Key:         keyBytes,
 		Depth:       0x0,
 		ChildNumber: []byte{0x00, 0x00, 0x00, 0x00},
 		FingerPrint: []byte{0x00, 0x00, 0x00, 0x00},
 		IsPrivate:   true,
 	}
 
-	return extendedKey, nil
+	return key, nil
 }
 
 // Derives a child key from a given parent as outlined by bip32
-func (extendedKey *ExtendedKey) Child(childIdx uint32) (*ExtendedKey, error) {
+func (key *Key) Child(childIdx uint32) (*Key, error) {
 	hardenedChild := childIdx >= FirstHardenedChild
 	childIndexBytes := uint32Bytes(childIdx)
 
 	// Fail early if trying to create hardned child from public key
-	if !extendedKey.IsPrivate && hardenedChild {
+	if !key.IsPrivate && hardenedChild {
 		return nil, errors.New("Can't create hardened child for public key")
 	}
 
@@ -78,88 +78,88 @@ func (extendedKey *ExtendedKey) Child(childIdx uint32) (*ExtendedKey, error) {
 	// NonHardened children are based on the public key
 	var data []byte
 	if hardenedChild {
-		data = append([]byte{0x0}, extendedKey.Key...)
+		data = append([]byte{0x0}, key.Key...)
 	} else {
-		data = publicKeyForPrivateKey(extendedKey.Key)
+		data = publicKeyForPrivateKey(key.Key)
 	}
 	data = append(data, childIndexBytes...)
 
-	hmac := hmac.New(sha512.New, extendedKey.ChainCode)
+	hmac := hmac.New(sha512.New, key.ChainCode)
 	hmac.Write(data)
 	intermediary := hmac.Sum(nil)
 
-	// Create child ExtendedKey with data common to all both scenarios
-	childExtendedKey := &ExtendedKey{
+	// Create child Key with data common to all both scenarios
+	childKey := &Key{
 		ChildNumber: childIndexBytes,
 		ChainCode:   intermediary[32:],
-		Depth:       extendedKey.Depth + 1,
-		IsPrivate:   extendedKey.IsPrivate,
+		Depth:       key.Depth + 1,
+		IsPrivate:   key.IsPrivate,
 	}
 
 	// Bip32 CKDpriv
-	if extendedKey.IsPrivate {
-		childExtendedKey.Version = PrivateWalletVersion
-		childExtendedKey.FingerPrint = hash160(publicKeyForPrivateKey(extendedKey.Key))[:4]
-		childExtendedKey.Key = addPrivateKeys(intermediary[:32], extendedKey.Key)
+	if key.IsPrivate {
+		childKey.Version = PrivateWalletVersion
+		childKey.FingerPrint = hash160(publicKeyForPrivateKey(key.Key))[:4]
+		childKey.Key = addPrivateKeys(intermediary[:32], key.Key)
 
 		// Validate key
-		err := validatePrivateKey(childExtendedKey.Key)
+		err := validatePrivateKey(childKey.Key)
 		if err != nil {
 			return nil, err
 		}
 		// Bip32 CKDpub
 	} else {
-		key := publicKeyForPrivateKey(intermediary[:32])
+		keyBytes := publicKeyForPrivateKey(intermediary[:32])
 
 		// Validate key
-		err := validateChildPublicKey(key)
+		err := validateChildPublicKey(keyBytes)
 		if err != nil {
 			return nil, err
 		}
 
-		childExtendedKey.Version = PublicWalletVersion
-		childExtendedKey.FingerPrint = hash160(extendedKey.Key)[:4]
-		childExtendedKey.Key = addPublicKeys(key, extendedKey.Key)
+		childKey.Version = PublicWalletVersion
+		childKey.FingerPrint = hash160(key.Key)[:4]
+		childKey.Key = addPublicKeys(keyBytes, key.Key)
 	}
 
-	return childExtendedKey, nil
+	return childKey, nil
 }
 
 // Create public version of key or return a copy
-func (extendedKey *ExtendedKey) Neuter() *ExtendedKey {
-	key := extendedKey.Key
+func (key *Key) Neuter() *Key {
+	keyBytes := key.Key
 
-	if extendedKey.IsPrivate {
-		key = publicKeyForPrivateKey(key)
+	if key.IsPrivate {
+		keyBytes = publicKeyForPrivateKey(keyBytes)
 	}
 
-	return &ExtendedKey{
+	return &Key{
 		Version:     PublicWalletVersion,
-		Key:         key,
-		Depth:       extendedKey.Depth,
-		ChildNumber: extendedKey.ChildNumber,
-		FingerPrint: extendedKey.FingerPrint,
-		ChainCode:   extendedKey.ChainCode,
+		Key:         keyBytes,
+		Depth:       key.Depth,
+		ChildNumber: key.ChildNumber,
+		FingerPrint: key.FingerPrint,
+		ChainCode:   key.ChainCode,
 		IsPrivate:   false,
 	}
 }
 
-// Serialized an ExtendedKey to a 78 byte byte slice
-func (extendedKey *ExtendedKey) Serialize() []byte {
+// Serialized an Key to a 78 byte byte slice
+func (key *Key) Serialize() []byte {
 	// Private keys should be prepended with a single null byte
-	key := extendedKey.Key
-	if extendedKey.IsPrivate {
-		key = append([]byte{0x0}, key...)
+	keyBytes := key.Key
+	if key.IsPrivate {
+		keyBytes = append([]byte{0x0}, keyBytes...)
 	}
 
 	// Write fields to buffer in order
 	buffer := new(bytes.Buffer)
-	buffer.Write(extendedKey.Version)
-	buffer.WriteByte(extendedKey.Depth)
-	buffer.Write(extendedKey.FingerPrint)
-	buffer.Write(extendedKey.ChildNumber)
-	buffer.Write(extendedKey.ChainCode)
-	buffer.Write(key)
+	buffer.Write(key.Version)
+	buffer.WriteByte(key.Depth)
+	buffer.Write(key.FingerPrint)
+	buffer.Write(key.ChildNumber)
+	buffer.Write(key.ChainCode)
+	buffer.Write(keyBytes)
 
 	// Append the standard doublesha256 checksum
 	serializedKey := addChecksumToBytes(buffer.Bytes())
@@ -167,9 +167,9 @@ func (extendedKey *ExtendedKey) Serialize() []byte {
 	return serializedKey
 }
 
-// Encode the ExtendedKey in the standard Bitcoin base58 encoding
-func (extendedKey *ExtendedKey) String() string {
-	return string(base58Encode(extendedKey.Serialize()))
+// Encode the Key in the standard Bitcoin base58 encoding
+func (key *Key) String() string {
+	return string(base58Encode(key.Serialize()))
 }
 
 // Cryptographically secure seed

@@ -98,7 +98,7 @@ func testVectorKeyPairs(t *testing.T, vector testMasterKey) {
 	seed, _ := hex.DecodeString(vector.seed)
 
 	// Generate a master private and public key
-	privKey, err := bip32.NewExtendedKey(seed)
+	privKey, err := bip32.NewMasterKey(seed)
 	assert.NoError(t, err)
 
 	pubKey := privKey.Neuter()
