@@ -100,9 +100,9 @@ func compressPublicKey(x *big.Int, y *big.Int) []byte {
 
 // As described at https://bitcointa.lk/threads/compressed-keys-y-from-x.95735/
 func expandPublicKey(key []byte) (*big.Int, *big.Int) {
-	var Y *big.Int
-	var X *big.Int
-	var qPlus1Div4 *big.Int
+	Y := big.NewInt(0)
+	X := big.NewInt(0)
+	qPlus1Div4 := big.NewInt(0)
 	X.SetBytes(key[1:])
 
 	// y^2 = x^3 + ax^2 + b
