@@ -2,7 +2,7 @@ package bip32
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
