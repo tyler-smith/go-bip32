@@ -150,6 +150,47 @@ func TestB58SerializeUnserialize(t *testing.T) {
 	}
 }
 
+func TestDeserializingInvalidStrings(t *testing.T) {
+	tests := []struct {
+		err    error
+		base58 string
+	}{
+		{ErrSerializedKeyWrongSize, "xprv9s21ZrQH143K4YUcKrp6cVxQaX59ZFkN6MFdeZjt8CHVYNs55xxQSvZpHWfojWMv6zgjmzopCyWPSFAnV4RU33J4pwCcnhsB4R4mPEnTsM"},
+		{ErrInvalidChecksum, "xprv9s21ZrQH143K3YSbAXLMPCzJso5QAarQksAGc5rQCyZCBfw4Rj2PqVLFNgezSBhktYkiL3Ta2stLPDF9yZtLMaxk6Spiqh3DNFG8p8MVeEc"},
+	}
+
+	for _, test := range tests {
+		_, err := B58Deserialize(test.base58)
+		assert.Equal(t, test.err, err)
+	}
+
+	_, err := B58Deserialize("notbase58iiiiiIIIIIbAXLMPCzJso5QAarQksAGc5rQCyZCBfw4Rj2PqVLFNgezSBhktYkiL3Ta2stLPDF9yZtLMaxk6Spiqh3DNFG8p8MVeEc")
+	assert.NotNil(t, err)
+}
+
+func TestCantCreateHardenedPublicChild(t *testing.T) {
+	key, err := NewMasterKey([]byte{})
+	assert.NoError(t, err)
+
+	// Test that it works for private keys
+	_, err = key.NewChildKey(FirstHardenedChild - 1)
+	assert.NoError(t, err)
+	_, err = key.NewChildKey(FirstHardenedChild)
+	assert.NoError(t, err)
+	_, err = key.NewChildKey(FirstHardenedChild + 1)
+	assert.NoError(t, err)
+
+	// Test that it throws an error for public keys if hardened
+	key = key.PublicKey()
+
+	_, err = key.NewChildKey(FirstHardenedChild - 1)
+	assert.NoError(t, err)
+	_, err = key.NewChildKey(FirstHardenedChild)
+	assert.Equal(t, ErrHardnedChildPublicKey, err)
+	_, err = key.NewChildKey(FirstHardenedChild + 1)
+	assert.Equal(t, ErrHardnedChildPublicKey, err)
+}
+
 func assertKeySerialization(t *testing.T, key *Key, knownBase58 string) {
 	serializedBase58 := key.B58Serialize()
 	assert.Equal(t, knownBase58, serializedBase58)
