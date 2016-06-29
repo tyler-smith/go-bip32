@@ -1,5 +1,7 @@
 # go-bip32
 
+[![Build Status](https://api.travis-ci.org/tyler-smith/go-bip32.png)](https://travis-ci.org/tyler-smith/go-bip32)
+
 A fully compliant implementation of the BIP0032 spec for Hierarchical Deterministic Bitcoin addresses
 
 
