@@ -2,7 +2,7 @@ package bip32
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/ripemd160"
+	"golang.org/x/crypto/ripemd160"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -57,6 +57,10 @@ func addChecksumToBytes(data []byte) []byte {
 
 func base58Encode(data []byte) []byte {
 	return []byte(BitcoinBase58Encoding.EncodeToString(data))
+}
+
+func base58Decode(data string) ([]byte, error) {
+	return BitcoinBase58Encoding.DecodeString(data)
 }
 
 // Keys
