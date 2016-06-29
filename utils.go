@@ -17,6 +17,9 @@ var (
 	curve                 = btcutil.Secp256k1()
 	curveParams           = curve.Params()
 	BitcoinBase58Encoding = basen.NewEncoding("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+
+	ErrInvalidSeed      = errors.New("Invalid seed")
+	ErrInvalidPublicKey = errors.New("Invalid public key")
 )
 
 //
@@ -132,7 +135,7 @@ func expandPublicKey(key []byte) (*big.Int, *big.Int) {
 func validatePrivateKey(key []byte) error {
 	keyInt, _ := binary.ReadVarint(bytes.NewBuffer(key))
 	if keyInt == 0 || bytes.Compare(key, curveParams.N.Bytes()) >= 0 {
-		return errors.New("Invalid seed")
+		return ErrInvalidSeed
 	}
 
 	return nil
@@ -142,7 +145,7 @@ func validateChildPublicKey(key []byte) error {
 	x, y := expandPublicKey(key)
 
 	if x.Sign() == 0 || y.Sign() == 0 {
-		return errors.New("Invalid public key")
+		return ErrInvalidPublicKey
 	}
 
 	return nil
