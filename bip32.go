@@ -165,9 +165,14 @@ func (key *Key) Serialize() []byte {
 	return serializedKey
 }
 
-// Encode the Key in the standard Bitcoin base58 encoding
+// B58Serialize encodes the Key in the standard Bitcoin base58 encoding
+func (key *Key) B58Serialize() string {
+	return base58Encode(key.Serialize())
+}
+
+// String encodes the Key in the standard Bitcoin base58 encoding
 func (key *Key) String() string {
-	return string(base58Encode(key.Serialize()))
+	return key.B58Serialize()
 }
 
 // Deserialize a byte slice into a Key
@@ -191,8 +196,8 @@ func Deserialize(data []byte) (*Key, error) {
 	}
 
 	// validate checksum
-	cs1 := checksum(data[0: len(data) - 4])
-	cs2 := data[len(data) - 4: len(data)]
+	cs1 := checksum(data[0 : len(data)-4])
+	cs2 := data[len(data)-4 : len(data)]
 	for i := range cs1 {
 		if cs1[i] != cs2[i] {
 			return nil, errors.New("Checksum doesn't match")

@@ -1,10 +1,10 @@
-package bip32_test
+package bip32
 
 import (
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
-	"github.com/tyler-smith/go-bip32"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type testMasterKey struct {
@@ -21,7 +21,7 @@ type testChildKey struct {
 }
 
 func TestBip32TestVectors(t *testing.T) {
-	hStart := bip32.FirstHardenedChild
+	hStart := FirstHardenedChild
 
 	vector1 := testMasterKey{
 		seed:    "000102030405060708090a0b0c0d0e0f",
@@ -98,7 +98,7 @@ func testVectorKeyPairs(t *testing.T, vector testMasterKey) {
 	seed, _ := hex.DecodeString(vector.seed)
 
 	// Generate a master private and public key
-	privKey, err := bip32.NewMasterKey(seed)
+	privKey, err := NewMasterKey(seed)
 	assert.NoError(t, err)
 
 	pubKey := privKey.PublicKey()
@@ -118,5 +118,43 @@ func testVectorKeyPairs(t *testing.T, vector testMasterKey) {
 		// Assert correctness
 		assert.Equal(t, testChildKey.privKey, privKey.String())
 		assert.Equal(t, testChildKey.pubKey, pubKey.String())
+
+		// Serialize and deserialize both keys and ensure they're the same
+		assertKeySerialization(t, privKey, testChildKey.privKey)
+		assertKeySerialization(t, pubKey, testChildKey.pubKey)
 	}
+}
+
+func TestNewSeed(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		seed, err := NewSeed()
+		assert.NoError(t, err)
+		assert.Equal(t, 256, len(seed))
+	}
+}
+
+func TestB58SerializeUnserialize(t *testing.T) {
+	tests := []struct {
+		seed   []byte
+		base58 string
+	}{
+		{[]byte{}, "xprv9s21ZrQH143K4YUcKrp6cVxQaX59ZFkN6MFdeZjt8CHVYNs55xxQSvZpHWfojWMv6zgjmzopCyWPSFAnV4RU33J4pwCcnhsB4R4mPEnTsMC"},
+		{[]byte{1}, "xprv9s21ZrQH143K3YSbAXLMPCzJso5QAarQksAGc5rQCyZCBfw4Rj2PqVLFNgezSBhktYkiL3Ta2stLPDF9yZtLMaxk6Spiqh3DNFG8p8MVeEC"},
+		{[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, "xprv9s21ZrQH143K2hKT3jMKPFEcQLbx2XD55NtqQA7B4C5U9mTZY7gBeCdoFgurN4pxkQshzP8AQhBmUNgAo5djj5FzvUFh5pKH6wcRMSXVuc1"},
+	}
+
+	for _, test := range tests {
+		key, err := NewMasterKey(test.seed)
+		assert.NoError(t, err)
+		assertKeySerialization(t, key, test.base58)
+	}
+}
+
+func assertKeySerialization(t *testing.T, key *Key, knownBase58 string) {
+	serializedBase58 := key.B58Serialize()
+	assert.Equal(t, knownBase58, serializedBase58)
+
+	unserializedBase58, err := B58Deserialize(serializedBase58)
+	assert.NoError(t, err)
+	assert.Equal(t, key, unserializedBase58)
 }

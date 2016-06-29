@@ -2,14 +2,15 @@ package bip32
 
 import (
 	"bytes"
-	"golang.org/x/crypto/ripemd160"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"github.com/cmars/basen"
-	"github.com/mndrix/btcutil"
 	"io"
 	"math/big"
+
+	"github.com/cmars/basen"
+	"github.com/mndrix/btcutil"
+	"golang.org/x/crypto/ripemd160"
 )
 
 var (
@@ -55,8 +56,8 @@ func addChecksumToBytes(data []byte) []byte {
 	return append(data, checksum...)
 }
 
-func base58Encode(data []byte) []byte {
-	return []byte(BitcoinBase58Encoding.EncodeToString(data))
+func base58Encode(data []byte) string {
+	return BitcoinBase58Encoding.EncodeToString(data)
 }
 
 func base58Decode(data string) ([]byte, error) {
