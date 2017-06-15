@@ -59,7 +59,10 @@ type Key struct {
 func NewMasterKey(seed []byte) (*Key, error) {
 	// Generate key and chaincode
 	hmac := hmac.New(sha512.New, []byte("Bitcoin seed"))
-	hmac.Write([]byte(seed))
+	_, err := hmac.Write(seed)
+	if err != nil {
+		return nil, err
+	}
 	intermediary := hmac.Sum(nil)
 
 	// Split it into our key and chain code
@@ -67,7 +70,7 @@ func NewMasterKey(seed []byte) (*Key, error) {
 	chainCode := intermediary[32:]
 
 	// Validate key
-	err := validatePrivateKey(keyBytes)
+	err = validatePrivateKey(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +111,10 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	data = append(data, childIndexBytes...)
 
 	hmac := hmac.New(sha512.New, key.ChainCode)
-	hmac.Write(data)
+	_, err := hmac.Write(data)
+	if err != nil {
+		return nil, err
+	}
 	intermediary := hmac.Sum(nil)
 
 	// Create child Key with data common to all both scenarios
@@ -122,11 +128,15 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	// Bip32 CKDpriv
 	if key.IsPrivate {
 		childKey.Version = PrivateWalletVersion
-		childKey.FingerPrint = hash160(publicKeyForPrivateKey(key.Key))[:4]
+		fingerprint, err := hash160(publicKeyForPrivateKey(key.Key))
+		if err != nil {
+			return nil, err
+		}
+		childKey.FingerPrint = fingerprint[:4]
 		childKey.Key = addPrivateKeys(intermediary[:32], key.Key)
 
 		// Validate key
-		err := validatePrivateKey(childKey.Key)
+		err = validatePrivateKey(childKey.Key)
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +151,11 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 		}
 
 		childKey.Version = PublicWalletVersion
-		childKey.FingerPrint = hash160(key.Key)[:4]
+		fingerprint, err := hash160(key.Key)
+		if err != nil {
+			return nil, err
+		}
+		childKey.FingerPrint = fingerprint[:4]
 		childKey.Key = addPublicKeys(keyBytes, key.Key)
 	}
 
@@ -169,7 +183,7 @@ func (key *Key) PublicKey() *Key {
 }
 
 // Serialize a Key to a 78 byte byte slice
-func (key *Key) Serialize() []byte {
+func (key *Key) Serialize() ([]byte, error) {
 	// Private keys should be prepended with a single null byte
 	keyBytes := key.Key
 	if key.IsPrivate {
@@ -186,14 +200,22 @@ func (key *Key) Serialize() []byte {
 	buffer.Write(keyBytes)
 
 	// Append the standard doublesha256 checksum
-	serializedKey := addChecksumToBytes(buffer.Bytes())
+	serializedKey, err := addChecksumToBytes(buffer.Bytes())
+	if err != nil {
+		return nil, err
+	}
 
-	return serializedKey
+	return serializedKey, nil
 }
 
 // B58Serialize encodes the Key in the standard Bitcoin base58 encoding
 func (key *Key) B58Serialize() string {
-	return base58Encode(key.Serialize())
+	serializedKey, err := key.Serialize()
+	if err != nil {
+		return ""
+	}
+
+	return base58Encode(serializedKey)
 }
 
 // String encodes the Key in the standard Bitcoin base58 encoding
@@ -222,8 +244,12 @@ func Deserialize(data []byte) (*Key, error) {
 	}
 
 	// validate checksum
-	cs1 := checksum(data[0 : len(data)-4])
-	cs2 := data[len(data)-4 : len(data)]
+	cs1, err := checksum(data[0 : len(data)-4])
+	if err != nil {
+		return nil, err
+	}
+
+	cs2 := data[len(data)-4:]
 	for i := range cs1 {
 		if cs1[i] != cs2[i] {
 			return nil, ErrInvalidChecksum
@@ -245,6 +271,6 @@ func B58Deserialize(data string) (*Key, error) {
 func NewSeed() ([]byte, error) {
 	// Well that easy, just make go read 256 random bytes into a slice
 	s := make([]byte, 256)
-	_, err := rand.Read([]byte(s))
+	_, err := rand.Read(s)
 	return s, err
 }

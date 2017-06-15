@@ -25,37 +25,70 @@ var (
 // Hashes
 //
 
-func hashSha256(data []byte) []byte {
+func hashSha256(data []byte) ([]byte, error) {
 	hasher := sha256.New()
-	hasher.Write(data)
-	return hasher.Sum(nil)
+	_, err := hasher.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	return hasher.Sum(nil), nil
 }
 
-func hashDoubleSha256(data []byte) []byte {
-	return hashSha256(hashSha256(data))
+func hashDoubleSha256(data []byte) ([]byte, error) {
+	hash1, err := hashSha256(data)
+	if err != nil {
+		return nil, err
+	}
+
+	hash2, err := hashSha256(hash1)
+	if err != nil {
+		return nil, err
+	}
+	return hash2, nil
 }
 
-func hashRipeMD160(data []byte) []byte {
+func hashRipeMD160(data []byte) ([]byte, error) {
 	hasher := ripemd160.New()
-	io.WriteString(hasher, string(data))
-	return hasher.Sum(nil)
+	_, err := io.WriteString(hasher, string(data))
+	if err != nil {
+		return nil, err
+	}
+	return hasher.Sum(nil), nil
 }
 
-func hash160(data []byte) []byte {
-	return hashRipeMD160(hashSha256(data))
+func hash160(data []byte) ([]byte, error) {
+	hash1, err := hashSha256(data)
+	if err != nil {
+		return nil, err
+	}
+
+	hash2, err := hashRipeMD160(hash1)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash2, nil
 }
 
 //
 // Encoding
 //
 
-func checksum(data []byte) []byte {
-	return hashDoubleSha256(data)[:4]
+func checksum(data []byte) ([]byte, error) {
+	hash, err := hashDoubleSha256(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return hash[:4], nil
 }
 
-func addChecksumToBytes(data []byte) []byte {
-	checksum := checksum(data)
-	return append(data, checksum...)
+func addChecksumToBytes(data []byte) ([]byte, error) {
+	checksum, err := checksum(data)
+	if err != nil {
+		return nil, err
+	}
+	return append(data, checksum...), nil
 }
 
 func base58Encode(data []byte) string {
@@ -68,7 +101,7 @@ func base58Decode(data string) ([]byte, error) {
 
 // Keys
 func publicKeyForPrivateKey(key []byte) []byte {
-	return compressPublicKey(curve.ScalarBaseMult([]byte(key)))
+	return compressPublicKey(curve.ScalarBaseMult(key))
 }
 
 func addPublicKeys(key1 []byte, key2 []byte) []byte {
