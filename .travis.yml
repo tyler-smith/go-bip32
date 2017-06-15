@@ -6,3 +6,6 @@ go:
 script:
  - go get github.com/stretchr/testify/assert
  - go test -v github.com/tyler-smith/go-bip32
+ - go get -u github.com/alecthomas/gometalinter
+ - $GOPATH/bin/gometalinter --install
+ - $GOPATH/bin/gometalinter $GOPATH/src/github.com/tyler-smith/go-bip32
