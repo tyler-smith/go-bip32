@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -15,12 +14,11 @@ import (
 )
 
 var (
-	curve                 = btcutil.Secp256k1()
-	curveParams           = curve.Params()
-	BitcoinBase58Encoding = basen.NewEncoding("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+	curve       = btcutil.Secp256k1()
+	curveParams = curve.Params()
 
-	ErrInvalidSeed      = errors.New("Invalid seed")
-	ErrInvalidPublicKey = errors.New("Invalid public key")
+	// BitcoinBase58Encoding is the encoding used for bitcoin addresses
+	BitcoinBase58Encoding = basen.NewEncoding("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 )
 
 //

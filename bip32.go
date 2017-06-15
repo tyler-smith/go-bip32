@@ -10,21 +10,41 @@ import (
 )
 
 const (
-	FirstHardenedChild        = uint32(0x80000000)
+	// FirstHardenedChild is the index of the firxt "harded" child key as per the
+	// bip32 spec
+	FirstHardenedChild = uint32(0x80000000)
+
+	// PublicKeyCompressedLength is the byte count of a compressed public key
 	PublicKeyCompressedLength = 33
 )
 
 var (
+	// PrivateWalletVersion is the version flag for serialized private keys
 	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
-	PublicWalletVersion, _  = hex.DecodeString("0488B21E")
 
+	// PublicWalletVersion is the version flag for serialized private keys
+	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
+
+	// ErrSerializedKeyWrongSize is returned when trying to deserialize a key that
+	// has an incorrect length
 	ErrSerializedKeyWrongSize = errors.New("Serialized keys should by exactly 82 bytes")
-	ErrHardnedChildPublicKey  = errors.New("Can't create hardened child for public key")
-	ErrInvalidChecksum        = errors.New("Checksum doesn't match")
-	ErrInvalidPrivateKey      = errors.New("Invalid private key")
+
+	// ErrHardnedChildPublicKey is returned when trying to create a harded child
+	// of the public key
+	ErrHardnedChildPublicKey = errors.New("Can't create hardened child for public key")
+
+	// ErrInvalidChecksum is returned when deserializing a key with an incorrect
+	// checksum
+	ErrInvalidChecksum = errors.New("Checksum doesn't match")
+
+	// ErrInvalidPrivateKey is returned when a derived private key is invalid
+	ErrInvalidPrivateKey = errors.New("Invalid private key")
+
+	// ErrInvalidPublicKey is returned when a derived public key is invalid
+	ErrInvalidPublicKey = errors.New("Invalid public key")
 )
 
-// Represents a bip32 extended key containing key data, chain code, parent information, and other meta data
+// Key represents a bip32 extended key
 type Key struct {
 	Version     []byte // 4 bytes
 	Depth       byte   // 1 bytes
@@ -35,7 +55,7 @@ type Key struct {
 	IsPrivate   bool   // unserialized
 }
 
-// Creates a new master extended key from a seed
+// NewMasterKey creates a new master extended key from a seed
 func NewMasterKey(seed []byte) (*Key, error) {
 	// Generate key and chaincode
 	hmac := hmac.New(sha512.New, []byte("Bitcoin seed"))
@@ -66,7 +86,7 @@ func NewMasterKey(seed []byte) (*Key, error) {
 	return key, nil
 }
 
-// Derives a child key from a given parent as outlined by bip32
+// NewChildKey derives a child key from a given parent as outlined by bip32
 func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	hardenedChild := childIdx >= FirstHardenedChild
 	childIndexBytes := uint32Bytes(childIdx)
@@ -128,7 +148,8 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	return childKey, nil
 }
 
-// Create public version of key or return a copy; 'Neuter' function from the bip32 spec
+// PublicKey returns the public version of key or return a copy
+// The 'Neuter' function from the bip32 spec
 func (key *Key) PublicKey() *Key {
 	keyBytes := key.Key
 
@@ -147,7 +168,7 @@ func (key *Key) PublicKey() *Key {
 	}
 }
 
-// Serialized an Key to a 78 byte byte slice
+// Serialize a Key to a 78 byte byte slice
 func (key *Key) Serialize() []byte {
 	// Private keys should be prepended with a single null byte
 	keyBytes := key.Key
@@ -211,7 +232,7 @@ func Deserialize(data []byte) (*Key, error) {
 	return key, nil
 }
 
-// Deserialize a Key encoded in base58 encoding
+// B58Deserialize deserializes a Key encoded in base58 encoding
 func B58Deserialize(data string) (*Key, error) {
 	b, err := base58Decode(data)
 	if err != nil {
@@ -220,7 +241,7 @@ func B58Deserialize(data string) (*Key, error) {
 	return Deserialize(b)
 }
 
-// Cryptographically secure seed
+// NewSeed returns a cryptographically secure seed
 func NewSeed() ([]byte, error) {
 	// Well that easy, just make go read 256 random bytes into a slice
 	s := make([]byte, 256)
