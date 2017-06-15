@@ -4,11 +4,6 @@
 
 An implementation of the BIP32 spec for Hierarchical Deterministic Bitcoin addresses as a simple Go library. The semantics of derived keys are up to the user. [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki) and [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki) are good schemes to implement with this library. An additional library for either or both of those on top of this library should be developed.
 
-## Contributing
-
-Contributions are very welcome. This is a side-project and I can't do it all on my own. Working together is the best way to get to the best sofware. Changes must comply with [gometalinter](https://github.com/alecthomas/gometalinter). It's tested in Travis and PRs will be rejected if they fail.
-
-
 ## Example
 
 It's very unlikely, but possible, that a given index does not produce a valid 
