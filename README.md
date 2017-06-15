@@ -6,10 +6,12 @@ An implementation of the BIP32 spec for Hierarchical Deterministic Bitcoin addre
 
 ## Contributing
 
-Contributions are very welcome. This is a side-project and I can't do it all on my own. Working together is the best way to get to the best sofware.
+Contributions are very welcome. This is a side-project and I can't do it all on my own. Working together is the best way to get to the best sofware. Changes must comply with [gometalinter](https://github.com/alecthomas/gometalinter). It's tested in Travis and PRs will be rejected if they fail.
 
 
 ## Example
+
+Errors should be handled by trying the next index for a child key. It's very unlikely, but possible, that a given index does not produce a valid key. Errors checking is skipped in this example for brevity but should be handled in real code.
 
 ```go
 package main
