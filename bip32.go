@@ -21,6 +21,7 @@ var (
 	ErrSerializedKeyWrongSize = errors.New("Serialized keys should by exactly 82 bytes")
 	ErrHardnedChildPublicKey  = errors.New("Can't create hardened child for public key")
 	ErrInvalidChecksum        = errors.New("Checksum doesn't match")
+	ErrInvalidPrivateKey      = errors.New("Invalid private key")
 )
 
 // Represents a bip32 extended key containing key data, chain code, parent information, and other meta data
