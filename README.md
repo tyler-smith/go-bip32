@@ -11,7 +11,7 @@ Contributions are very welcome. This is a side-project and I can't do it all on 
 
 ## Example
 
-Errors should be handled by trying the next index for a child key. It's very unlikely, but possible, that a given index does not produce a valid key. Errors checking is skipped in this example for brevity but should be handled in real code.
+Errors should be handled by trying the next index for a child key. It's very unlikely, but possible, that a given index does not produce a valid key. Error checking is skipped in this example for brevity but should be handled in real code.
 
 ```go
 package main
