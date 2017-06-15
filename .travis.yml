@@ -1,12 +1,8 @@
 language: go
 go: 
- - 1.6.x
- - 1.7.x
- - 1.8.x
- - 1.9.x
- - release
+ - 1.8.1
  - tip
 
 script:
  - go get github.com/stretchr/testify/assert
- - go test -v ./...
+ - go test -v github.com/tyler-smith/go-bip32
