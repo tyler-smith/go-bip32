@@ -91,35 +91,19 @@ func NewMasterKey(seed []byte) (*Key, error) {
 
 // NewChildKey derives a child key from a given parent as outlined by bip32
 func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
-	hardenedChild := childIdx >= FirstHardenedChild
-	childIndexBytes := uint32Bytes(childIdx)
-
 	// Fail early if trying to create hardned child from public key
-	if !key.IsPrivate && hardenedChild {
+	if !key.IsPrivate && childIdx >= FirstHardenedChild {
 		return nil, ErrHardnedChildPublicKey
 	}
 
-	// Get intermediary to create key and chaincode from
-	// Hardened children are based on the private key
-	// NonHardened children are based on the public key
-	var data []byte
-	if hardenedChild {
-		data = append([]byte{0x0}, key.Key...)
-	} else {
-		data = publicKeyForPrivateKey(key.Key)
-	}
-	data = append(data, childIndexBytes...)
-
-	hmac := hmac.New(sha512.New, key.ChainCode)
-	_, err := hmac.Write(data)
+	intermediary, err := key.getIntermediary(childIdx)
 	if err != nil {
 		return nil, err
 	}
-	intermediary := hmac.Sum(nil)
 
 	// Create child Key with data common to all both scenarios
 	childKey := &Key{
-		ChildNumber: childIndexBytes,
+		ChildNumber: uint32Bytes(childIdx),
 		ChainCode:   intermediary[32:],
 		Depth:       key.Depth + 1,
 		IsPrivate:   key.IsPrivate,
@@ -160,6 +144,32 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	}
 
 	return childKey, nil
+}
+
+func (key *Key) getIntermediary(childIdx uint32) ([]byte, error) {
+	// Get intermediary to create key and chaincode from
+	// Hardened children are based on the private key
+	// NonHardened children are based on the public key
+	childIndexBytes := uint32Bytes(childIdx)
+
+	var data []byte
+	if childIdx >= FirstHardenedChild {
+		data = append([]byte{0x0}, key.Key...)
+	} else {
+		if key.IsPrivate {
+			data = publicKeyForPrivateKey(key.Key)
+		} else {
+			data = key.Key
+		}
+	}
+	data = append(data, childIndexBytes...)
+
+	hmac := hmac.New(sha512.New, key.ChainCode)
+	_, err := hmac.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	return hmac.Sum(nil), nil
 }
 
 // PublicKey returns the public version of key or return a copy
