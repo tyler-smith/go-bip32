@@ -143,26 +143,26 @@ func compressPublicKey(x *big.Int, y *big.Int) []byte {
 	return key.Bytes()
 }
 
-// As described at https://bitcointa.lk/threads/compressed-keys-y-from-x.95735/
+// As described at https://crypto.stackexchange.com/a/8916
 func expandPublicKey(key []byte) (*big.Int, *big.Int) {
 	Y := big.NewInt(0)
 	X := big.NewInt(0)
-	qPlus1Div4 := big.NewInt(0)
 	X.SetBytes(key[1:])
 
 	// y^2 = x^3 + ax^2 + b
 	// a = 0
 	// => y^2 = x^3 + b
-	ySquared := X.Exp(X, big.NewInt(3), nil)
+	ySquared := big.NewInt(0)
+	ySquared.Exp(X, big.NewInt(3), nil)
 	ySquared.Add(ySquared, curveParams.B)
 
-	qPlus1Div4.Add(curveParams.P, big.NewInt(1))
-	qPlus1Div4.Div(qPlus1Div4, big.NewInt(4))
+	Y.ModSqrt(ySquared, curveParams.P)
 
-	// sqrt(n) = n^((q+1)/4) if q = 3 mod 4
-	Y.Exp(ySquared, qPlus1Div4, curveParams.P)
+	Ymod2 := big.NewInt(0)
+	Ymod2.Mod(Y, big.NewInt(2))
 
-	if uint32(key[0])%2 == 0 {
+	signY := uint64(key[0]) - 2
+	if signY != Ymod2.Uint64() {
 		Y.Sub(curveParams.P, Y)
 	}
 
