@@ -62,3 +62,5 @@ func main(){
 ## Thanks
 
 The developers at [Factom](https://www.factom.com/) have contributed a lot to this library and have made many great improvements to it. Please check out their project(s) and give them a thanks if you use this library.
+
+Thanks to [bartekn](https://github.com/bartekn) from Stellar for some important bug catches.
