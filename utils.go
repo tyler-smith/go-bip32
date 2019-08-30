@@ -9,7 +9,7 @@ import (
 	"math/big"
 
 	"github.com/FactomProject/basen"
-	"github.com/FactomProject/btcutilecc"
+	btcutil "github.com/FactomProject/btcutilecc"
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -187,6 +187,18 @@ func validateChildPublicKey(key []byte) error {
 	}
 
 	return nil
+}
+
+func getKeyVersionNetwork(version []byte) (string, error) {
+	if bytes.Equal(version, PrivateMainNetWalletVersion) || bytes.Equal(version, PublicMainNetWalletVersion) {
+		return "mainnet", nil
+	}
+
+	if bytes.Equal(version, PrivateTestNetWalletVersion) || bytes.Equal(version, PublicTestNetWalletVersion) {
+		return "testnet", nil
+	}
+
+	return "", ErrInvalidBTCNetwork
 }
 
 //
