@@ -21,6 +21,10 @@ type testChildKey struct {
 	hexPubKey    string
 }
 
+var (
+	testB58EncodedKey = "tpubD6NzVbkrYhZ4Y1jgAyXeePXD8wZ2xCUkvVgPHbcdz5PgREqZaPRy5n6mJT8EywCRVHtRAXhdn1APJTXt29fbsknEWRcC5UonWDp6vo6MHi2"
+)
+
 func TestBip32TestVectors(t *testing.T) {
 	hStart := FirstHardenedChild
 
@@ -246,6 +250,46 @@ func TestCantCreateHardenedPublicChild(t *testing.T) {
 	assert.Equal(t, ErrHardnedChildPublicKey, err)
 	_, err = key.NewChildKey(FirstHardenedChild + 1)
 	assert.Equal(t, ErrHardnedChildPublicKey, err)
+}
+
+func TestCanSetSupportedNetwork(t *testing.T) {
+	expectedNetwork := "mainnet"
+	err := SetBTCNetwork(expectedNetwork)
+	assert.NoError(t, err)
+
+	assert.Equal(t, BTCNetwork, expectedNetwork)
+
+	expectedNetwork = "testnet"
+	err = SetBTCNetwork(expectedNetwork)
+	assert.NoError(t, err)
+
+	assert.Equal(t, BTCNetwork, expectedNetwork)
+}
+
+func TestCantSetUnsupportedNetwork(t *testing.T) {
+	err := SetBTCNetwork("randomnet")
+	assert.Equal(t, ErrInvalidBTCNetwork, err)
+}
+
+func TestChildKeyVersionEqualParentKeyVersion(t *testing.T) {
+	key, err := B58Deserialize(testB58EncodedKey)
+	assert.NoError(t, err)
+
+	childKey, err := key.NewChildKey(0)
+	assert.NoError(t, err)
+
+	assert.Equal(t, childKey.Version, key.Version)
+}
+
+func TestKeyToBTCAddress(t *testing.T) {
+	key, err := B58Deserialize(testB58EncodedKey)
+	assert.NoError(t, err)
+
+	btcAddress, err := key.Address()
+	assert.NoError(t, err)
+
+	expectedBTCAddress := "mnCBTW7HdpgmPYTzMV8VCzJfJfqGLVnUHi"
+	assert.Equal(t, btcAddress, expectedBTCAddress)
 }
 
 func assertKeySerialization(t *testing.T, key *Key, knownBase58 string) {
