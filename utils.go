@@ -191,11 +191,11 @@ func validateChildPublicKey(key []byte) error {
 
 func getKeyVersionNetwork(version []byte) (string, error) {
 	if bytes.Equal(version, PrivateMainNetWalletVersion) || bytes.Equal(version, PublicMainNetWalletVersion) {
-		return "mainnet", nil
+		return NetworkMainNet, nil
 	}
 
 	if bytes.Equal(version, PrivateTestNetWalletVersion) || bytes.Equal(version, PublicTestNetWalletVersion) {
-		return "testnet", nil
+		return NetworkTestNet, nil
 	}
 
 	return "", ErrInvalidBTCNetwork

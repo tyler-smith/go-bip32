@@ -17,11 +17,17 @@ const (
 
 	// PublicKeyCompressedLength is the byte count of a compressed public key
 	PublicKeyCompressedLength = 33
+
+	// NetworkTestNet is the string for BTC TestNet network
+	NetworkTestNet = "testnet"
+
+	// NetworkMainNet is the string for BTC MainNet network
+	NetworkMainNet = "mainnet"
 )
 
 var (
 	// BTCNetwork is the BTC network on which the wallet is valid (decides public/private version flags)
-	BTCNetwork = "mainnet"
+	BTCNetwork = NetworkMainNet
 
 	// PrivateWalletVersion is the version flag for serialized private keys for set BTCNetwork
 	PrivateWalletVersion []byte
@@ -65,7 +71,7 @@ var (
 )
 
 func init() {
-	SetBTCNetwork("mainnet") // set default network
+	SetBTCNetwork(NetworkMainNet) // set default network
 }
 
 // SetBTCNetwork sets BTCNetwork to the given network string if supported
@@ -75,11 +81,11 @@ func SetBTCNetwork(network string) error {
 	BTCNetwork = network
 
 	switch network {
-	case "mainnet":
+	case NetworkMainNet:
 		PrivateWalletVersion = PrivateMainNetWalletVersion
 		PublicWalletVersion = PublicMainNetWalletVersion
 
-	case "testnet":
+	case NetworkTestNet:
 		PrivateWalletVersion = PrivateTestNetWalletVersion
 		PublicWalletVersion = PublicTestNetWalletVersion
 
@@ -356,7 +362,7 @@ func (key *Key) Address() (string, error) {
 	versionPrefixByte := 0x00 // mainnet
 
 	switch network {
-	case "testnet":
+	case NetworkTestNet:
 		versionPrefixByte = 0x6f
 	}
 
