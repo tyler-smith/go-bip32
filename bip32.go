@@ -91,7 +91,7 @@ func NewMasterKey(seed []byte) (*Key, error) {
 
 // NewChildKey derives a child key from a given parent as outlined by bip32
 func (k *Key) NewChildKey(childIdx uint32) (*Key, error) {
-	// Fail early if trying to create hardned child from public k
+	// Fail early if trying to create hardned child from public key
 	if !k.IsPrivate && childIdx >= FirstHardenedChild {
 		return nil, ErrHardnedChildPublicKey
 	}
@@ -119,7 +119,7 @@ func (k *Key) NewChildKey(childIdx uint32) (*Key, error) {
 		childKey.FingerPrint = fingerprint[:4]
 		childKey.Key = addPrivateKeys(intermediary[:32], k.Key)
 
-		// Validate k
+		// Validate key
 		err = validatePrivateKey(childKey.Key)
 		if err != nil {
 			return nil, err
@@ -128,7 +128,7 @@ func (k *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	} else {
 		keyBytes := publicKeyForPrivateKey(intermediary[:32])
 
-		// Validate k
+		// Validate key
 		err := validateChildPublicKey(keyBytes)
 		if err != nil {
 			return nil, err
