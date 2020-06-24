@@ -1,11 +1,13 @@
 language: go
 go: 
- - 1.8.1
- - tip
+ - "1.11.x"
+ - "1.12.x"
+ - "1.13.x"
+ - "1.14.x"
+ - "tip"
 
+env:
+  - GO111MODULE=on
+  
 script:
- - go get github.com/stretchr/testify/assert
- - go test -v github.com/tyler-smith/go-bip32
- - go get -u github.com/alecthomas/gometalinter
- - $GOPATH/bin/gometalinter --install
- - $GOPATH/bin/gometalinter $GOPATH/src/github.com/tyler-smith/go-bip32
+ - go test -race -v ./...
