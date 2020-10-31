@@ -1,6 +1,13 @@
 # go-bip32
 
-[![Build Status](https://api.travis-ci.org/tyler-smith/go-bip32.png)](https://travis-ci.org/tyler-smith/go-bip32)
+[![PkgGoDev](https://pkg.go.dev/badge/tyler-smith/go-bip32)](https://pkg.go.dev/tyler-smith/go-bip32)
+[![GitHub release](https://img.shields.io/github/release/Naereen/StrapDown.js.svg)](https://GitHub.com/Naereen/StrapDown.js/releases/)
+[![MIT License](https://img.shields.io/github/license/tyler-smith/go-bip32.svg?maxAge=2592000&color=blue)](https://github.com/tyler-smith/go-bip32/blob/master/LICENSE)
+[![Contributors](https://img.shields.io/github/contributors/tyler-smith/go-bip32.svg?color=blue)](https://github.com/tyler-smith/go-bip32/graphs/contributors)
+
+[![Build check](https://github.com/tyler-smith/go-bip32/workflows/build-check/badge.svg?branch=master)](https://github.com/tyler-smith/go-bip32/actions?query=workflow%3Abuild-check+branch%3Amaster)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tyler-smith/go-bip32)](https://goreportcard.com/report/github.com/tyler-smith/go-bip32)
+[![Coverage Status](https://coveralls.io/repos/github/tyler-smith/go-bip32/badge.svg?branch=TS_v2)](https://coveralls.io/github/tyler-smith/go-bip32?branch=TS_v2)
 
 An implementation of the BIP32 spec for Hierarchical Deterministic Bitcoin addresses as a simple Go library. The semantics of derived keys are up to the user. [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki) and [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki) are good schemes to implement with this library. An additional library for either or both of those on top of this library should be developed.
 
