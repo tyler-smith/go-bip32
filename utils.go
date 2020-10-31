@@ -9,7 +9,7 @@ import (
 	"math/big"
 
 	"github.com/FactomProject/basen"
-	"github.com/FactomProject/btcutilecc"
+	btcutil "github.com/FactomProject/btcutilecc"
 	"golang.org/x/crypto/ripemd160"
 )
 
