@@ -7,6 +7,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"strings"
 )
 
 const (
@@ -16,14 +17,39 @@ const (
 
 	// PublicKeyCompressedLength is the byte count of a compressed public key
 	PublicKeyCompressedLength = 33
+
+	// NetworkTestNet is the string for BTC TestNet network
+	NetworkTestNet = "testnet"
+
+	// NetworkMainNet is the string for BTC MainNet network
+	NetworkMainNet = "mainnet"
 )
 
 var (
-	// PrivateWalletVersion is the version flag for serialized private keys
-	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
+	// BTCNetwork is the BTC network on which the wallet is valid (decides public/private version flags)
+	BTCNetwork = NetworkMainNet
 
-	// PublicWalletVersion is the version flag for serialized private keys
-	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
+	// PrivateWalletVersion is the version flag for serialized private keys for set BTCNetwork
+	PrivateWalletVersion []byte
+
+	// PublicWalletVersion is the version flag for serialized public keys for set BTCNetwork
+	PublicWalletVersion []byte
+
+	// PrivateMainNetWalletVersion is the version flag for mainnet serialized private keys
+	PrivateMainNetWalletVersion, _ = hex.DecodeString("0488ADE4")
+
+	// PublicMainNetWalletVersion is the version flag for mainnet serialized public keys
+	PublicMainNetWalletVersion, _ = hex.DecodeString("0488B21E")
+
+	// PrivateTestNetWalletVersion is the version flag for testnet serialized private keys
+	PrivateTestNetWalletVersion, _ = hex.DecodeString("04358394")
+
+	// PublicTestNetWalletVersion is the version flag for testnet serialized public keys
+	PublicTestNetWalletVersion, _ = hex.DecodeString("043587cf")
+
+	// ErrInvalidBTCNetwork is returned when trying to set a BTC network
+	// which is not currently supported
+	ErrInvalidBTCNetwork = errors.New("Invalid BTC network")
 
 	// ErrSerializedKeyWrongSize is returned when trying to deserialize a key that
 	// has an incorrect length
@@ -43,6 +69,32 @@ var (
 	// ErrInvalidPublicKey is returned when a derived public key is invalid
 	ErrInvalidPublicKey = errors.New("Invalid public key")
 )
+
+func init() {
+	SetBTCNetwork(NetworkMainNet) // set default network
+}
+
+// SetBTCNetwork sets BTCNetwork to the given network string if supported
+func SetBTCNetwork(network string) error {
+	network = strings.ToLower(network)
+
+	BTCNetwork = network
+
+	switch network {
+	case NetworkMainNet:
+		PrivateWalletVersion = PrivateMainNetWalletVersion
+		PublicWalletVersion = PublicMainNetWalletVersion
+
+	case NetworkTestNet:
+		PrivateWalletVersion = PrivateTestNetWalletVersion
+		PublicWalletVersion = PublicTestNetWalletVersion
+
+	default:
+		return ErrInvalidBTCNetwork
+	}
+
+	return nil
+}
 
 // Key represents a bip32 extended key
 type Key struct {
@@ -103,6 +155,7 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 
 	// Create child Key with data common to all both scenarios
 	childKey := &Key{
+		Version:     key.Version,
 		ChildNumber: uint32Bytes(childIdx),
 		ChainCode:   intermediary[32:],
 		Depth:       key.Depth + 1,
@@ -111,7 +164,6 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 
 	// Bip32 CKDpriv
 	if key.IsPrivate {
-		childKey.Version = PrivateWalletVersion
 		fingerprint, err := hash160(publicKeyForPrivateKey(key.Key))
 		if err != nil {
 			return nil, err
@@ -134,7 +186,6 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 			return nil, err
 		}
 
-		childKey.Version = PublicWalletVersion
 		fingerprint, err := hash160(key.Key)
 		if err != nil {
 			return nil, err
@@ -283,4 +334,53 @@ func NewSeed() ([]byte, error) {
 	s := make([]byte, 256)
 	_, err := rand.Read(s)
 	return s, err
+}
+
+// Address returns the BTC address of the key
+func (key *Key) Address() (string, error) {
+	// https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+
+	// SHA-256( key )
+	sha256Key, err := hashSha256(key.Key)
+	if err != nil {
+		return "", err
+	}
+
+	// RIPEMD-160( SHA-256(key) )
+	r160SHA256Key, err := hashRipeMD160(sha256Key)
+	if err != nil {
+		return "", err
+	}
+
+	// Get network by key version
+	network, err := getKeyVersionNetwork(key.Version)
+	if err != nil {
+		return "", err
+	}
+
+	// Set version prefix byte to prepend to RIPEMD-160( SHA-256(key) ) by network
+	versionPrefixByte := 0x00 // mainnet
+
+	switch network {
+	case NetworkTestNet:
+		versionPrefixByte = 0x6f
+	}
+
+	// Prepend version prefix byte to RIPEMD-160( SHA-256(key) )
+	verR160SHA256Key := append([]byte{byte(versionPrefixByte)}, r160SHA256Key...)
+
+	// SHA-256( SHA-256 ( VER_RIPEMD-160( SHA-256(key) ) ) )
+	dblSHA256VerR160SHA256Key, err := hashDoubleSha256(verR160SHA256Key)
+	if err != nil {
+		return "", err
+	}
+
+	// First 4 bytes of SHA-256( SHA-256 ( VER_RIPEMD-160( SHA-256(key) ) ) )
+	first4Bytes := dblSHA256VerR160SHA256Key[:4]
+
+	// Append first 4 bytes to VER_RIPEMD-160( SHA-256(key) )
+	verR160SHA256KeyF4B := append(verR160SHA256Key, first4Bytes...)
+
+	// Base58 encode VER_RIPEMD-160( SHA-256(key) )_FIRST4BYTES
+	return base58Encode(verR160SHA256KeyF4B), nil
 }
