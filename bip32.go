@@ -22,7 +22,7 @@ var (
 	// PrivateWalletVersion is the version flag for serialized private keys
 	PrivateWalletVersion, _ = hex.DecodeString("0488ADE4")
 
-	// PublicWalletVersion is the version flag for serialized private keys
+	// PublicWalletVersion is the version flag for serialized public keys
 	PublicWalletVersion, _ = hex.DecodeString("0488B21E")
 
 	// ErrSerializedKeyWrongSize is returned when trying to deserialize a key that
