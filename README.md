@@ -7,13 +7,15 @@
 
 [![Build check](https://github.com/tyler-smith/go-bip32/workflows/build-check/badge.svg?branch=master)](https://github.com/tyler-smith/go-bip32/actions?query=workflow%3Abuild-check+branch%3Amaster)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tyler-smith/go-bip32)](https://goreportcard.com/report/github.com/tyler-smith/go-bip32)
-[![Coverage Status](https://coveralls.io/repos/github/tyler-smith/go-bip32/badge.svg?branch=TS_v2)](https://coveralls.io/github/tyler-smith/go-bip32?branch=TS_v2)
+[![Coverage Status](https://coveralls.io/repos/github/tyler-smith/go-bip32/badge.svg)](https://coveralls.io/github/tyler-smith/go-bip32)
 
 An implementation of the BIP32 spec for Hierarchical Deterministic Bitcoin addresses as a simple Go library. The semantics of derived keys are up to the user. [BIP43](https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki) and [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki) are good schemes to implement with this library. An additional library for either or both of those on top of this library should be developed.
 
+The library supports "Bitcoin" and "ed25519" curves for [Universal private key derivation from master private key](https://github.com/satoshilabs/slips/blob/master/slip-0010.md).
+
 ## Example
 
-It's very unlikely, but possible, that a given index does not produce a valid 
+It's very unlikely, but possible, that a given index does not produce a valid
 private key. Error checking is skipped in this example for brevity but should be handled in real code. In such a case, a ErrInvalidPrivateKey is returned.
 
 ErrInvalidPrivateKey should be handled by trying the next index for a child key.

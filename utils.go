@@ -2,7 +2,10 @@ package bip32
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -70,6 +73,14 @@ func hash160(data []byte) ([]byte, error) {
 	return hash2, nil
 }
 
+func hmac512(data, key []byte) ([]byte, error) {
+	hmac := hmac.New(sha512.New, key)
+	if _, err := hmac.Write(data); err != nil {
+		return nil, err
+	}
+	return hmac.Sum(nil), nil
+}
+
 //
 // Encoding
 //
@@ -100,8 +111,15 @@ func base58Decode(data string) ([]byte, error) {
 }
 
 // Keys
-func publicKeyForPrivateKey(key []byte) []byte {
+func publicKeyForPrivateKeyBitcoin(key []byte) []byte {
 	return compressPublicKey(curve.ScalarBaseMult(key))
+}
+
+func publicKeyForPrivateKeyEd25519(key []byte) []byte {
+	var publicKey [33]byte
+	privateKey := ed25519.NewKeyFromSeed(key)
+	copy(publicKey[1:], privateKey[32:])
+	return publicKey[:]
 }
 
 func addPublicKeys(key1 []byte, key2 []byte) []byte {
