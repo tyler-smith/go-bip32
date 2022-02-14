@@ -4,14 +4,14 @@ name: build-check
 on: [push, pull_request]
 jobs:
   build-check:
-    name: build-check Go ${{ matrix.go }}
-    runs-on: ubuntu-20.04
+    name: Go Test
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         go:
+          - '1.17'
+          - '1.16'
           - '1.15'
-          - '1.14'
-          - '1.13'
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v1
@@ -19,8 +19,8 @@ jobs:
           go-version: ${{ matrix.go }}
       - run: make build_check
   test-coverage:
-    name: build-check Go ${{ matrix.go }}
-    runs-on: ubuntu-20.04
+    name: Go Test With Code Coverage
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v1

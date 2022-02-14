@@ -2,9 +2,7 @@ package bip32
 
 import (
 	"bytes"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha512"
 	"encoding/hex"
 	"errors"
 )
@@ -42,7 +40,27 @@ var (
 
 	// ErrInvalidPublicKey is returned when a derived public key is invalid
 	ErrInvalidPublicKey = errors.New("Invalid public key")
+
+	// ErrUnsupportedEd25519PublicKeyDerivation is returned when a public child key is derived with ed25519 curve.
+	ErrUnsupportedEd25519PublicKeyDerivation = errors.New("Public key for ed25519 is not supported for normal derivation")
 )
+
+// The supported curves.
+// @link SupportedCurves
+const (
+	Bitcoin Curve = iota // secp256k1
+	Ed25519
+)
+
+// curvesSalt corresponds to the supported curves @SupportedCurves by the index.
+var curvesSalt = [][]byte{
+	[]byte("Bitcoin seed"),
+	[]byte("ed25519 seed"),
+}
+
+// Curve defines the private key for the HMAC hash that generates the master key.
+// https://github.com/satoshilabs/slips/blob/master/slip-0010.md#master-key-generation
+type Curve byte
 
 // Key represents a bip32 extended key
 type Key struct {
@@ -51,19 +69,25 @@ type Key struct {
 	ChildNumber []byte // 4 bytes
 	FingerPrint []byte // 4 bytes
 	ChainCode   []byte // 32 bytes
-	Depth       byte   // 1 bytes
+	Depth       byte   // 1 byte
 	IsPrivate   bool   // unserialized
+
+	// The Deserialize function sets it bip32.Bitcoin by default.
+	// see https://github.com/satoshilabs/slips/blob/master/slip-0132.md#registered-hd-version-bytes
+	curve Curve
 }
 
-// NewMasterKey creates a new master extended key from a seed
-func NewMasterKey(seed []byte) (*Key, error) {
+// NewMasterKeyWithCurve creates a new master extended key from a seed
+// with a given curve algorithm.
+func NewMasterKeyWithCurve(seed []byte, curve Curve) (*Key, error) {
+	if int(curve) > len(curvesSalt) {
+		panic("unsupported curve, only bip32.Bitcoin and bit32.Ed25519 are supported")
+	}
 	// Generate key and chaincode
-	hmac := hmac.New(sha512.New, []byte("Bitcoin seed"))
-	_, err := hmac.Write(seed)
+	intermediary, err := hmac512(seed, curvesSalt[curve])
 	if err != nil {
 		return nil, err
 	}
-	intermediary := hmac.Sum(nil)
 
 	// Split it into our key and chain code
 	keyBytes := intermediary[:32]
@@ -84,9 +108,16 @@ func NewMasterKey(seed []byte) (*Key, error) {
 		ChildNumber: []byte{0x00, 0x00, 0x00, 0x00},
 		FingerPrint: []byte{0x00, 0x00, 0x00, 0x00},
 		IsPrivate:   true,
+		curve:       curve,
 	}
 
 	return key, nil
+}
+
+// NewMasterKey creates a new master extended key from a seed
+// using the Bitcoin curve.
+func NewMasterKey(seed []byte) (*Key, error) {
+	return NewMasterKeyWithCurve(seed, Bitcoin)
 }
 
 // NewChildKey derives a child key from a given parent as outlined by bip32
@@ -94,6 +125,16 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 	// Fail early if trying to create hardned child from public key
 	if !key.IsPrivate && childIdx >= FirstHardenedChild {
 		return nil, ErrHardnedChildPublicKey
+	}
+
+	if key.curve == Ed25519 {
+		if !key.IsPrivate {
+			return nil, ErrUnsupportedEd25519PublicKeyDerivation
+		}
+		// With ed25519 curve all derivation-path indexes will be promoted to hardened indexes.
+		if childIdx < FirstHardenedChild {
+			childIdx += FirstHardenedChild
+		}
 	}
 
 	intermediary, err := key.getIntermediary(childIdx)
@@ -107,26 +148,37 @@ func (key *Key) NewChildKey(childIdx uint32) (*Key, error) {
 		ChainCode:   intermediary[32:],
 		Depth:       key.Depth + 1,
 		IsPrivate:   key.IsPrivate,
+		curve:       key.curve,
 	}
 
 	// Bip32 CKDpriv
 	if key.IsPrivate {
 		childKey.Version = PrivateWalletVersion
-		fingerprint, err := hash160(publicKeyForPrivateKey(key.Key))
+
+		var publicKey []byte
+
+		// https://github.com/satoshilabs/slips/blob/master/slip-0010.md#private-parent-key--private-child-key
+		if childKey.curve == Ed25519 {
+			childKey.Key = intermediary[:32]
+			publicKey = publicKeyForPrivateKeyEd25519(key.Key)
+		} else {
+			childKey.Key = addPrivateKeys(intermediary[:32], key.Key)
+			// Validate key
+			if err := validatePrivateKey(childKey.Key); err != nil {
+				return nil, err
+			}
+			publicKey = publicKeyForPrivateKeyBitcoin(key.Key)
+		}
+
+		fingerprint, err := hash160(publicKey)
 		if err != nil {
 			return nil, err
 		}
 		childKey.FingerPrint = fingerprint[:4]
-		childKey.Key = addPrivateKeys(intermediary[:32], key.Key)
 
-		// Validate key
-		err = validatePrivateKey(childKey.Key)
-		if err != nil {
-			return nil, err
-		}
 		// Bip32 CKDpub
 	} else {
-		keyBytes := publicKeyForPrivateKey(intermediary[:32])
+		keyBytes := publicKeyForPrivateKeyBitcoin(intermediary[:32])
 
 		// Validate key
 		err := validateChildPublicKey(keyBytes)
@@ -157,19 +209,14 @@ func (key *Key) getIntermediary(childIdx uint32) ([]byte, error) {
 		data = append([]byte{0x0}, key.Key...)
 	} else {
 		if key.IsPrivate {
-			data = publicKeyForPrivateKey(key.Key)
+			data = publicKeyForPrivateKeyBitcoin(key.Key)
 		} else {
 			data = key.Key
 		}
 	}
 	data = append(data, childIndexBytes...)
 
-	hmac := hmac.New(sha512.New, key.ChainCode)
-	_, err := hmac.Write(data)
-	if err != nil {
-		return nil, err
-	}
-	return hmac.Sum(nil), nil
+	return hmac512(data, key.ChainCode)
 }
 
 // PublicKey returns the public version of key or return a copy
@@ -178,7 +225,11 @@ func (key *Key) PublicKey() *Key {
 	keyBytes := key.Key
 
 	if key.IsPrivate {
-		keyBytes = publicKeyForPrivateKey(keyBytes)
+		if key.curve == Ed25519 {
+			keyBytes = publicKeyForPrivateKeyEd25519(keyBytes)
+		} else {
+			keyBytes = publicKeyForPrivateKeyBitcoin(keyBytes)
+		}
 	}
 
 	return &Key{
@@ -189,6 +240,7 @@ func (key *Key) PublicKey() *Key {
 		FingerPrint: key.FingerPrint,
 		ChainCode:   key.ChainCode,
 		IsPrivate:   false,
+		curve:       key.curve,
 	}
 }
 
