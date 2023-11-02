@@ -159,7 +159,7 @@ func (key *Key) getIntermediary(childIdx uint32) ([]byte, error) {
 		if key.IsPrivate {
 			data = publicKeyForPrivateKey(key.Key)
 		} else {
-			data = key.Key
+			data = append(data, key.Key...)
 		}
 	}
 	data = append(data, childIndexBytes...)
